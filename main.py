@@ -16,13 +16,15 @@ class App(tk.Frame):
     # Constructor
     def __init__(self, master=None):
         # Init game instance
-        self.game = Game(boardsize=3)
+        self.game = Game()
         
         # Init App window
         tk.Frame.__init__(self, master)
         self.grid()
         
         # Init all necesary vars for UI
+        self.OUTLINE_CLSOE = 1
+        self.OUTLINE_FAR = 601
         self.boardsize_v = tk.StringVar()
         self.gamemode_v = tk.IntVar()
         self.playermode_v = tk.IntVar()
@@ -31,6 +33,8 @@ class App(tk.Frame):
         self.p2Score_v = tk.IntVar()
         self.turn_v = tk.StringVar()
         self.reg = self.register(self.boardsize_callback)
+        self.board_v = {}
+        self.pieces_v = {}
         
         # Pull default values for UI vars
         self.pull_settings()
@@ -38,19 +42,22 @@ class App(tk.Frame):
         self.pull_turn()
         
         # Init widgets
-        self.create_widgets()  
+        self.create_widgets() 
+        
+        # Init default board
+        self.create_board() 
     
     # Exception handler function
     def excp_handler(self, error):
+        # TODO: implement message box function to detail error information
         try:
             raise error
         except InvalidBoardSizeExcp as ibse:
-            print('ya fukd up')
+            print('ya messed up')
         except ValueError as ve:
             print('bad val')
         except LogicalExcp as le:
-            print('Something very wrong has occured. See full notes')
-            print(le)
+            print('Something very wrong has occured.')
         except:
             self.quit()
     
@@ -65,10 +72,9 @@ class App(tk.Frame):
     
     # Instantiates all widgets for game UI
     def create_widgets(self):
-        top = self.winfo_toplevel()
         
         # Row 0, col 0: Game title
-        self.title = tk.Label(self, text='SOS')
+        self.title = tk.Label(self, text='SOS', font=('Arial', -40))
         self.title.grid(row=0, column=0, pady=3)
         
         #region Row 1, col 0: new game settings pane
@@ -93,25 +99,22 @@ class App(tk.Frame):
         self.playermodePvc = tk.Radiobutton(self.newgameSettings, text='User v COM', variable=self.playermode_v, value=1)
         self.playermodePvp.grid(row=5, column=0, columnspan=2)
         self.playermodePvc.grid(row=6, column=0, columnspan=2)
-
         #endregion
         
         # Row 2, col 0: Start new game button
         self.startGameBtn = tk.Button(self, text="Start new game", command=self.new_game)
         self.startGameBtn.grid(row=3, column=0, pady=3)
-        # sticky=tk.N+tk.S+tk.E+tk.W
         
         # Row 1, col 1: game window
-        self.gameWindow = tk.Canvas(self, height=600, width=600)
-        self.gameWindow.create_rectangle(0, 0, 600, 600, fill="black")
-        self.gameWindow.grid(row=1, column=1)
+        self.gameWindow = tk.Canvas(self, height=self.OUTLINE_FAR, width=self.OUTLINE_FAR)
+        self.gameWindow.grid(row=1, column=1, padx=1, pady=1)
         
         # Row 0, col 2: player turn
         self.turnFrame = tk.Frame(self)
         self.turnFrame.grid(row=0, column=2)
-        self.turnLabel = tk.Label(self.turnFrame, text='Turn: ')
+        self.turnLabel = tk.Label(self.turnFrame, text='Turn: ', font=('Arial', -20))
         self.turnLabel.grid(row=0, column=0)
-        self.currentTurn = tk.Label(self.turnFrame, textvariable=self.turn_v)
+        self.currentTurn = tk.Label(self.turnFrame, textvariable=self.turn_v, font=('Arial', -20))
         self.currentTurn.grid(row=0, column=1)
 
         #region Row 1, col 2: current game settings pane
@@ -200,28 +203,114 @@ class App(tk.Frame):
         w.config(text=var.get())
         self.after(100, self.update_widget, w, var)
     
-    # Updates player data vars every 90ms
+    # Updates player data vars every 50ms
     def update_playerdata(self):
         self.pull_scores()
         self.pull_turn()
-        self.after(90, self.update_playerdata)
+        self.after(50, self.update_playerdata)
     #endregion
     
+    #region Board-related functions
+    # Create a game board in canvas
+    def create_board(self):
+        self.clear_board()
+        bs = self.game.get_board_size()
+        divisor = (self.OUTLINE_FAR - self.OUTLINE_CLSOE) / bs 
+        tlc_x = self.OUTLINE_CLSOE
+        brc_x = divisor
+        tlc_y = tlc_x
+        brc_y = brc_x
+        
+        #print(divisor)
+        
+        # Create board rectangles
+        for r in range(bs):
+            for c in range(bs):
+                self.board_v[self.gameWindow.create_rectangle(tlc_x, tlc_y, brc_x, brc_y, tags='clickable')] = (r,c)
+                tlc_x += divisor
+                brc_x += divisor 
+            tlc_x = self.OUTLINE_CLSOE
+            brc_x = divisor
+            tlc_y = tlc_x + (divisor * (r + 1))
+            brc_y = brc_x + (divisor * (r + 1))
+        
+        # TODO: alter to only take game imput when game.is_active() returns True
+        self.gameWindow.bind('<Button-1>', self.clicked)
+        return
+    
+    # Clears game board canvas and dict and adds a border
+    def clear_board(self):
+        self.gameWindow.delete('all')
+        self.board_v.clear()
+        self.pieces_v.clear()
+        self.gameWindow.create_rectangle(self.OUTLINE_CLSOE, self.OUTLINE_CLSOE, self.OUTLINE_FAR, self.OUTLINE_FAR)
+        
+    # Update UI game board and Game board when a valid move occurs
+    def update_board(self, item):
+        gb = self.game.get_board()
+        coordr, coordc = self.board_v[item]
+        self.send_piece()
+        
+        if gb[coordr][coordc] != ' ':
+            return
+        else:            
+            # Prepare to draw appropriate letter to screen
+            x1, y1, x2, y2 = self.gameWindow.coords(item)
+            size = int(y2 - y1) - 50
+            midx = (x1 + x2) / 2
+            midy = (y1 + y2) / 2
+            cfont = ('DejaVu Sans', -size)
+            if self.game.get_turn() == 1:
+                color = 'red'
+            else:
+                color = 'blue'
+            self.pieces_v[(coordr, coordc)] = self.gameWindow.create_text(midx, midy, text=self.piece_v.get(), font=cfont, fill=color)
+            
+            # Once drawn, update Game class w/ appropriate move
+            self.game.move(coordr, coordc)
+        return
+    
+    # TODO: implement function to draw line across item1 and item2
+    def draw_line(self, item1, item2):
+        return
+    #endregion
+    
+    # Runs when an object is clicked
+    def clicked(self, event):
+        print("clicked")
+        print(event)
+        self.gameWindow.focus_set()
+        
+        clicked_item = self.gameWindow.find_closest(event.x, event.y)[0]
+        print(clicked_item)
+        if clicked_item:
+            if 'clickable' not in self.gameWindow.gettags(clicked_item):
+                return
+            else:
+                self.update_board(clicked_item)
+        else:
+            try:
+                raise LogicalExcp
+            except Exception as e:
+                self.excp_handler(e)
+                return
     
     # Ran when new game button is pressed, used for a debug layer currently
     def new_game(self):
         print('In new game UI func')
         
-        print(self.boardsize_v.get())
-        
         if not self.send_settings():
             return
         else:
             self.game.new_game()
-            print('Out of Game new game func')
-        
-        # TODO: create func for printing board to screen
-        #self.print_board()
+            
+        print('Out of Game new game func')
+
+        self.create_board()
+    
+    # TODO: add message box function to display a message m as pop-up to the user
+    def message(self, m):
+        return
         
 
 
