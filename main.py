@@ -256,7 +256,7 @@ class App(tk.Frame):
         else:            
             # Prepare to draw appropriate letter to screen
             x1, y1, x2, y2 = self.gameWindow.coords(item)
-            size = int(y2 - y1) - 50
+            size = int((y2 - y1) * 0.8) 
             midx = (x1 + x2) / 2
             midy = (y1 + y2) / 2
             cfont = ('DejaVu Sans', -size)
