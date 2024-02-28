@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import messagebox
 from Game import Game
 from Errors import *
 
@@ -33,6 +34,7 @@ class App(tk.Frame):
         self.p2Score_v = tk.IntVar()
         self.turn_v = tk.StringVar()
         self.reg = self.register(self.boardsize_callback)
+        self.border_id = None
         self.board_v = {}
         self.pieces_v = {}
         
@@ -49,15 +51,14 @@ class App(tk.Frame):
     
     # Exception handler function
     def excp_handler(self, error):
-        # TODO: implement message box function to detail error information
         try:
             raise error
         except InvalidBoardSizeExcp as ibse:
-            print('ya messed up')
+            self.message("Invalid board size! (3-20)")
         except ValueError as ve:
-            print('bad val')
+            self.message("Please enter a board size (3-20)")
         except LogicalExcp as le:
-            print('Something very wrong has occured.')
+            self.message(le)
         except:
             self.quit()
     
@@ -161,11 +162,6 @@ class App(tk.Frame):
                 self.turn_v.set(f'Player {t}')
             case 2:
                 self.turn_v.set(f'Player {t}')
-            case _:
-                try:
-                    raise LogicalExcp
-                except Exception as e:
-                    self.excp_handler(e)
     #endregion
     
     #region Sender funcs
@@ -234,8 +230,16 @@ class App(tk.Frame):
             tlc_y = tlc_x + (divisor * (r + 1))
             brc_y = brc_x + (divisor * (r + 1))
         
-        # TODO: alter to only take game imput when game.is_active() returns True
-        self.gameWindow.bind('<Button-1>', self.clicked)
+        
+        if self.game.is_active():
+            self.gameWindow.bind('<Button-1>', self.clicked)
+        else:
+            self.piece_v.set('S')
+            self.update_board(self.border_id + 4)
+            self.piece_v.set('O')
+            self.update_board(self.border_id + 5)
+            self.piece_v.set('S')
+            self.update_board(self.border_id + 6)
         return
     
     # Clears game board canvas and dict and adds a border
@@ -243,7 +247,7 @@ class App(tk.Frame):
         self.gameWindow.delete('all')
         self.board_v.clear()
         self.pieces_v.clear()
-        self.gameWindow.create_rectangle(self.OUTLINE_CLSOE, self.OUTLINE_CLSOE, self.OUTLINE_FAR, self.OUTLINE_FAR)
+        self.border_id = self.gameWindow.create_rectangle(self.OUTLINE_CLSOE, self.OUTLINE_CLSOE, self.OUTLINE_FAR, self.OUTLINE_FAR)
         
     # Update UI game board and Game board when a valid move occurs
     def update_board(self, item):
@@ -276,13 +280,10 @@ class App(tk.Frame):
     #endregion
     
     # Runs when an object is clicked
-    def clicked(self, event):
-        print("clicked")
-        print(event)
-        self.gameWindow.focus_set()
-        
+    def clicked(self, event):        
         clicked_item = self.gameWindow.find_closest(event.x, event.y)[0]
-        print(clicked_item)
+        #clicked_item = False
+
         if clicked_item:
             if 'clickable' not in self.gameWindow.gettags(clicked_item):
                 return
@@ -290,7 +291,7 @@ class App(tk.Frame):
                 self.update_board(clicked_item)
         else:
             try:
-                raise LogicalExcp
+                raise LogicalExcp("ERROR: Clickable item not found.")
             except Exception as e:
                 self.excp_handler(e)
                 return
@@ -308,8 +309,9 @@ class App(tk.Frame):
 
         self.create_board()
     
-    # TODO: add message box function to display a message m as pop-up to the user
+    # Shows message box to the user with message m
     def message(self, m):
+        messagebox.showinfo(message=m, title="SOS")
         return
         
 
