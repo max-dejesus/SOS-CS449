@@ -1,6 +1,6 @@
 class InvalidBoardSizeExcp(Exception):
     # Raised when a board size is not applicable
-    # Range 3 - 50
+    # Range 3 - 20
     pass
 
 class LogicalExcp(Exception):

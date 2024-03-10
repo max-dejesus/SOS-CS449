@@ -83,8 +83,9 @@ class Game():
     def move(self, r, c):
         try:
             self._board[r][c] = self._piece
-            if self.check_sos():
+            if self.check_sos(r, c):
                 self.inc_score()
+            else: pass
             if self.is_won():
                 self.end_game()
             else:
@@ -104,7 +105,26 @@ class Game():
     # S piece will have 3 valid neighbors for scoring if touching 2 edges
     # S piece will have 5 valid neighbors for scoring if touching 1 edge
     # S piece will have 8 valid neighbors for scoring if touching no edge
-    def check_sos(self):
+    def check_sos(self, r, c):
+        '''
+        def edges_touched(self):
+            edges = 0
+            if r == 0 or r == (self._board_size - 1):
+                edges += 1
+            if c == 0 or c == (self._board_size - 1):
+                edges += 1
+            return edges
+        
+        match self._piece:
+            case 'S':
+                return
+            case "O":
+                if edges_touched() == 2:
+                    return False
+                if edges_touched() == 1:
+                    #TODO: implement
+                    pass
+        '''
         return
     
     # TODO: Determine if the game is "won" based on gamemode
@@ -117,6 +137,9 @@ class Game():
             else:
                 return False
         else:
-            return False
+            for ls in self._board:
+                if ' ' in ls:
+                    return False
+            return True
     
     

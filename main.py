@@ -282,7 +282,6 @@ class App(tk.Frame):
     # Runs when an object is clicked
     def clicked(self, event):        
         clicked_item = self.gameWindow.find_closest(event.x, event.y)[0]
-        #clicked_item = False
 
         if clicked_item:
             if 'clickable' not in self.gameWindow.gettags(clicked_item):
