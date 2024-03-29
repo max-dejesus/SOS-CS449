@@ -11,7 +11,7 @@ top.columnconfigure(0, weight=1)
 self.rowconfigure(0, weight=1)
 self.columnconfigure(0, weight=1)
 '''
-#####  END BOX   #####
+#####  END BOX   #####  
 
 class App(tk.Frame):
     # Constructor
@@ -217,8 +217,6 @@ class App(tk.Frame):
         tlc_y = tlc_x
         brc_y = brc_x
         
-        #print(divisor)
-        
         # Create board rectangles
         for r in range(bs):
             for c in range(bs):
@@ -230,7 +228,7 @@ class App(tk.Frame):
             tlc_y = tlc_x + (divisor * (r + 1))
             brc_y = brc_x + (divisor * (r + 1))
         
-        
+        # Binds click event if game is active, otherwise draws SOS to screen
         if self.game.is_active():
             self.gameWindow.bind('<Button-1>', self.clicked)
         else:
@@ -264,19 +262,54 @@ class App(tk.Frame):
             midx = (x1 + x2) / 2
             midy = (y1 + y2) / 2
             cfont = ('DejaVu Sans', -size)
-            if self.game.get_turn() == 1:
-                color = 'red'
-            else:
-                color = 'blue'
-            self.pieces_v[(coordr, coordc)] = self.gameWindow.create_text(midx, midy, text=self.piece_v.get(), font=cfont, fill=color)
+            self.pieces_v[(coordr, coordc)] = self.gameWindow.create_text(midx, midy, text=self.piece_v.get(), font=cfont, fill='black')
             
             # Once drawn, update Game class w/ appropriate move
             self.game.move(coordr, coordc)
+            
+            # Check SOS and draw to screen
+            if self.game.is_active():
+                soses = self.game.check_sos(coordr, coordc)
+                if soses == False:
+                    pass
+                else:
+                    print(soses)
+                    for i in range(0, len(soses), 2):
+                        item1 = self.pieces_v[soses[i]]
+                        item2 = self.pieces_v[soses[i+1]]
+                        self.draw_line(item1, item2)
+                        self.game.inc_score()
+            
+            # Check if game has been completed
+            if self.game.is_won():
+                winner = self.game.end_game()
+                self.gameWindow.unbind('<Button-1>')
+                if winner == False:
+                    msg = 'The game ends in a tie.'
+                elif winner == 1:
+                    msg = 'Player 1 wins!'
+                elif winner == 2:
+                    msg = 'Player 2 wins!'
+                
+                # Show winner to the screen
+                self.message(msg)
+            else:
+                pass
+                
+            # Swaps turn before returning control to player
+            self.game.swap_turn()
         return
     
-    # TODO: implement function to draw line across item1 and item2
+    # Draws line across item1 and item2
+    # Marks successful SOSes for the player
     def draw_line(self, item1, item2):
-        return
+        x1, y1 = self.gameWindow.coords(item1)
+        x2, y2 = self.gameWindow.coords(item2)
+        if self.game.get_turn() == 1:
+            color = 'red'
+        else:
+           color = 'blue'
+        self.gameWindow.create_line(x1, y1, x2, y2, width=8, capstyle=tk.ROUND, smooth=True, fill=color)
     #endregion
     
     # Runs when an object is clicked
