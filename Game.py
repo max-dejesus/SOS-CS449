@@ -71,12 +71,6 @@ class Game():
         else: 
             return False
         
-        # TODO: add end game func
-        # Display score and game winner
-        # Pop-up box with winner and OK button
-        # After a game ends, assume program is being "reset"
-        # Behave as if a new window had opened (run constructor)
-    
     # Score incrementer, default 1 but optionally allows increase by input integer
     def inc_score(self, c = 1):
         if self._turn == 1: self._p1_score += c
@@ -95,7 +89,6 @@ class Game():
             return False
     
     # Check for an SOS
-    # TODO: Implement game logic
     # Design notes: 
     # O piece needs to check 0-4 neighbors based on whether or not it is touching 0 edges, 1 edge, or 2 edges
     # S piece needs to check 3-8 neighbors based on the same idea
@@ -339,8 +332,6 @@ class Game():
             return soses
                         
                         
-                             
-    
     # Determine if the game is "won" based on gamemode
     # Win in simple (gametype 0) if any player gets an SOS
     # Win in general (gametype 1) if board is filled, winner is player w/ most points
@@ -349,7 +340,11 @@ class Game():
             if self._p1_score > 0 or self._p2_score > 0:
                 return True
             else:
-                return False
+                for ls in self._board:
+                    if ' ' in ls:
+                        return False
+                    else:
+                        return True
         elif self._gametype == 1:
             for ls in self._board:
                 if ' ' in ls:

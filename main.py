@@ -22,7 +22,7 @@ class App(tk.Frame):
         # Init App window
         tk.Frame.__init__(self, master)
         self.grid()
-        
+
         # Init all necesary vars for UI
         self.OUTLINE_CLSOE = 1
         self.OUTLINE_FAR = 601
@@ -47,7 +47,12 @@ class App(tk.Frame):
         self.create_widgets() 
         
         # Init default board
-        self.create_board() 
+        self.create_board()
+        
+        # Prevent window reshaping (Windows only, seems not to work in Linux)
+        self.top = self.winfo_toplevel()
+        self.top.resizable(False, False)
+        
     
     # Exception handler function
     def excp_handler(self, error):
@@ -73,7 +78,6 @@ class App(tk.Frame):
     
     # Instantiates all widgets for game UI
     def create_widgets(self):
-        
         # Row 0, col 0: Game title
         self.title = tk.Label(self, text='SOS', font=('Arial', -40))
         self.title.grid(row=0, column=0, pady=3)
@@ -293,6 +297,7 @@ class App(tk.Frame):
                 
                 # Show winner to the screen
                 self.message(msg)
+                return
             else:
                 pass
                 
