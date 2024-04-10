@@ -2,14 +2,16 @@ import unittest
 import sys, os
 from Game import Game
 from main import App
+from COM import COM
 
+# Functions to revoke/restore printing operations
 def blockPrint():
     sys.stdout = open(os.devnull, 'w')
 
 def enablePrint():
     sys.stdout = sys.__stdout__
 
-
+# Class for any Game class related test cases
 class TestGameClass(unittest.TestCase):
     def __init__(self, methodName: str = "runTest") -> None:
         super().__init__(methodName)
@@ -173,9 +175,8 @@ class TestGameClass(unittest.TestCase):
         self.assertEqual(False, self.sample.is_active())
         enablePrint()
         print('Test a6 passed')
-        
-        
-    
+            
+# Class for any App class related test cases
 class TestAppClass(unittest.TestCase):
     def __init__(self, methodName: str = "runTest") -> None:
         super().__init__(methodName)
@@ -207,6 +208,67 @@ class TestAppClass(unittest.TestCase):
         self.assertEqual(example, self.app.game.get_board())
         enablePrint()
         print('test b2 passed')
+
+# Class for any COM class related test cases
+class TestCOMClass(unittest.TestCase):
+    def __init__(self, methodName: str = 'runTest') -> None:
+        super().__init__(methodName)
+        self.game = Game(3)
+        self.com = COM(self.game)
+        
+    # Test C1: COM opponenet makes the first move
+    def test_first_move(self):
+        self.game.new_game()
+        self.com.set_player(1)
+        mv, pc = self.com.select_move()
+        self.game.set_piece(pc)
+        self.game.move(mv[0], mv[1])
+        
+        self.assertEqual(1, self.game.get_no_moves())
+        
+        print('test C1 passed')
+        self.game.end_game()
+        
+    # Test C2: COM opponent completes an SOS and scores a point
+    def test_ideal_move(self):
+        self.game.new_game()
+        self.com.set_player(2)
+        self.game.set_piece('S')
+        self.game.move(1,0)
+        self.game.move(1,2)
+        self.game.swap_turn()
+        
+        mv, pc = self.com.select_move()
+        self.game.set_piece(pc)
+        self.game.move(mv[0], mv[1])
+        
+        soses = self.game.check_sos(mv[0], mv[1])
+        if soses:
+            self.game.inc_score()
+        
+        self.assertEqual(1, self.game.get_p2_score())
+        
+        print('Test C2 passed')
+        self.game.end_game()
+    
+    # Test C3: COM player finishes a general game (all spaces are filled)
+    def test_game_finish(self):
+        self.game.set_gametype(1) # general game
+        self.game.new_game()
+        self.com.set_player(1)
+        moves = self.game.get_no_moves()
+        
+        while moves < 9:
+            mv, pc = self.com.select_move()
+            self.game.set_piece(pc)
+            self.game.move(mv[0], mv[1])
+            
+            moves = self.game.get_no_moves()
+        
+        self.assertEqual(True, self.game.is_won())
+        
+        print('Test C3 passed')
+        self.game.end_game()
 
 if __name__ == '__main__':
     unittest.main()

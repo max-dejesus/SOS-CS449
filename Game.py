@@ -11,9 +11,10 @@ class Game():
         self._piece = 'S'
         self._p1_score = 0
         self._p2_score = 0
+        self._no_moves = 0
         # Type 0 = simple, type 1 = general
         self._gametype = 0
-        # Type 0 = user vs user, type 1 = user vs com, type 2 = recording/replay TODO
+        # Type 0 = user vs user, type 1 = user vs COM, type 2 = COM v COM, type 3 = recording/replay
         self._playertype = 0
         self._board = self.create_board(self._board_size)
         # Flag for game state
@@ -36,6 +37,8 @@ class Game():
         return self._piece
     def get_turn(self):
         return self._turn
+    def get_no_moves(self):
+        return self._no_moves
     def is_active(self):
         return self._active_game
     def set_piece(self, p):
@@ -59,6 +62,7 @@ class Game():
         self._turn = 1
         self._p1_score = 0
         self._p2_score = 0
+        self._no_moves = 0
         self._board = self.create_board(self._board_size)
         
     # Terminate a game instance
@@ -85,6 +89,7 @@ class Game():
     def move(self, r, c):
         try:
             self._board[r][c] = self._piece
+            self._no_moves += 1
         except:
             return False
     
@@ -155,11 +160,11 @@ class Game():
                             if self._board[r-1][c] == 'O':
                                 if self._board[r-2][c] == 'S':
                                     soses.append((r,c))
-                                    soses.append((r,c+n2))
+                                    soses.append((r-2,c))
                             if self._board[r-1][c+n1] == 'O':
                                 if self._board[r-2][c+n2] == 'S':
                                     soses.append((r,c))
-                                    soses.append((r+n2,c+n2))
+                                    soses.append((r-2,c+n2))
                 elif len(edges) == 1:
                     match edges:
                         case 'N' | 'S':
@@ -343,8 +348,7 @@ class Game():
                 for ls in self._board:
                     if ' ' in ls:
                         return False
-                    else:
-                        return True
+                return True
         elif self._gametype == 1:
             for ls in self._board:
                 if ' ' in ls:

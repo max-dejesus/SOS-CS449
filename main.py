@@ -2,6 +2,8 @@ import tkinter as tk
 from tkinter import messagebox
 from Game import Game
 from Errors import *
+from COM import COM
+from time import sleep, perf_counter_ns
 
 ##### FLOWER BOX #####
 '''
@@ -38,6 +40,12 @@ class App(tk.Frame):
         self.board_v = {}
         self.pieces_v = {}
         
+        # COM related vars (init as nulls, class is called if correct player mode is selected)
+        self.com = None
+        self.com_player = None
+        self.com_2 = None
+        self.com_2_player = None
+        
         # Pull default values for UI vars
         self.pull_settings()
         self.pull_scores()
@@ -67,7 +75,7 @@ class App(tk.Frame):
         except:
             self.quit()
     
-    # Board size entry validator
+    # Board size entry validator, prevents anything but digits and backspace
     def boardsize_callback(self, input):
         if input.isdigit():
             return True
@@ -102,8 +110,10 @@ class App(tk.Frame):
         self.playermodeLabel.grid(row=4, column=0)
         self.playermodePvp = tk.Radiobutton(self.newgameSettings, text='User v User', variable=self.playermode_v, value=0)
         self.playermodePvc = tk.Radiobutton(self.newgameSettings, text='User v COM', variable=self.playermode_v, value=1)
+        self.playermodeCvc = tk.Radiobutton(self.newgameSettings, text='COM v COM', variable=self.playermode_v, value=2)
         self.playermodePvp.grid(row=5, column=0, columnspan=2)
         self.playermodePvc.grid(row=6, column=0, columnspan=2)
+        self.playermodeCvc.grid(row=7, column=0, columnspan=2)
         #endregion
         
         # Row 2, col 0: Start new game button
@@ -163,9 +173,19 @@ class App(tk.Frame):
         t = self.game.get_turn()
         match t:
             case 1:
-                self.turn_v.set(f'Player {t}')
+                if self.com and self.com_player == 1:
+                    self.turn_v.set(f'COM {t}')
+                elif self.com_2 and self.com_2_player == 1:
+                    self.turn_v.set(f'COM {t}')
+                else:
+                    self.turn_v.set(f'Player {t}')
             case 2:
-                self.turn_v.set(f'Player {t}')
+                if self.com and self.com_player == 2:
+                    self.turn_v.set(f'COM {t}')
+                elif self.com_2 and self.com_2_player == 2:
+                    self.turn_v.set(f'COM {t}')
+                else:
+                    self.turn_v.set(f'Player {t}')
     #endregion
     
     #region Sender funcs
@@ -195,19 +215,28 @@ class App(tk.Frame):
     # Updates anything needed to be updated, used at runtime
     def update_all(self):
         self.update_playerdata()
+        self.update_com()
         self.update_widget(self.p1Score, self.p1Score_v)
         self.update_widget(self.p2Score, self.p2Score_v)
         
-    # Update a widget w with a variable var every 100ms
+    # Update a widget w with a variable var every 10ms
     def update_widget(self, w, var):
         w.config(text=var.get())
-        self.after(100, self.update_widget, w, var)
+        self.after(10, self.update_widget, w, var)
     
-    # Updates player data vars every 50ms
+    # Updates player data vars every 5ms
     def update_playerdata(self):
         self.pull_scores()
         self.pull_turn()
-        self.after(50, self.update_playerdata)
+        self.after(5, self.update_playerdata)
+    
+    # COM move updater; runs and checks if computer's turn, runs its set of functions
+    def update_com(self):
+        if self.com or self.com_2:
+            if self.game.get_turn() == self.com_player or self.game.get_turn() == self.com_2_player:
+                self.com_move()
+        self.after(50, self.update_com)
+        
     #endregion
     
     #region Board-related functions
@@ -234,6 +263,9 @@ class App(tk.Frame):
         
         # Binds click event if game is active, otherwise draws SOS to screen
         if self.game.is_active():
+            # Do not bind click event if COM v COM
+            if self.playermode_v.get() == 2:
+                return
             self.gameWindow.bind('<Button-1>', self.clicked)
         else:
             self.piece_v.set('S')
@@ -273,33 +305,25 @@ class App(tk.Frame):
             
             # Check SOS and draw to screen
             if self.game.is_active():
-                soses = self.game.check_sos(coordr, coordc)
-                if soses == False:
-                    pass
-                else:
-                    print(soses)
-                    for i in range(0, len(soses), 2):
-                        item1 = self.pieces_v[soses[i]]
-                        item2 = self.pieces_v[soses[i+1]]
-                        self.draw_line(item1, item2)
-                        self.game.inc_score()
+                if self.game.get_no_moves() > 2:
+                    #pf_start = perf_counter_ns()
+                    soses = self.game.check_sos(coordr, coordc)
+                    #pf_end = perf_counter_ns()
+                    #print('SOS executed. Time elapsed:', pf_end-pf_start, 'ns')
+                    if soses == False:
+                        pass
+                    else:
+                        #print(f"Turn: {self.turn_v.get()}", (len(soses) / 2), soses)
+                        for i in range(0, len(soses), 2):
+                            item1 = self.pieces_v[soses[i]]
+                            item2 = self.pieces_v[soses[i+1]]
+                            self.draw_line(item1, item2)
+                            self.game.inc_score()
             
             # Check if game has been completed
             if self.game.is_won():
-                winner = self.game.end_game()
-                self.gameWindow.unbind('<Button-1>')
-                if winner == False:
-                    msg = 'The game ends in a tie.'
-                elif winner == 1:
-                    msg = 'Player 1 wins!'
-                elif winner == 2:
-                    msg = 'Player 2 wins!'
-                
-                # Show winner to the screen
-                self.message(msg)
+                self.end_game()
                 return
-            else:
-                pass
                 
             # Swaps turn before returning control to player
             self.game.swap_turn()
@@ -314,7 +338,15 @@ class App(tk.Frame):
             color = 'red'
         else:
            color = 'blue'
-        self.gameWindow.create_line(x1, y1, x2, y2, width=8, capstyle=tk.ROUND, smooth=True, fill=color)
+        
+        if self.game.get_board_size() >= 16:
+            w = 3
+        elif self.game.get_board_size() >= 11:
+            w = 5
+        else:
+            w = 8
+        
+        self.gameWindow.create_line(x1, y1, x2, y2, width=w, capstyle=tk.ROUND, smooth=True, fill=color)
     #endregion
     
     # Runs when an object is clicked
@@ -322,6 +354,8 @@ class App(tk.Frame):
         clicked_item = self.gameWindow.find_closest(event.x, event.y)[0]
 
         if clicked_item:
+            if self.com and self.game.get_turn() == self.com_player:
+                return
             if 'clickable' not in self.gameWindow.gettags(clicked_item):
                 return
             else:
@@ -332,28 +366,82 @@ class App(tk.Frame):
             except Exception as e:
                 self.excp_handler(e)
                 return
-    
-    # Ran when new game button is pressed, used for a debug layer currently
+    #region Game execution functions
+    # Ran when new game button is pressed. Specific setup employed based on player mode.
     def new_game(self):
-        print('In new game UI func')
-        
         if not self.send_settings():
             return
         else:
+            if self.playermode_v.get() == 1 or self.playermode_v.get() == 2:
+                self.com = COM(self.game)
+                self.com_player = self.com.get_player()
+            if self.playermode_v.get() == 2:
+                self.com_2 = COM(self.game)
+                self.com_2_player = 1 if self.com_player == 2 else 2
+                self.com_2.set_player(self.com_2_player)
             self.game.new_game()
             
-        print('Out of Game new game func')
-
         self.create_board()
+    
+    # Ends game instance
+    def end_game(self):
+        winner = self.game.end_game()
+        self.gameWindow.unbind('<Button-1>')
+        if winner == False:
+            msg = 'The game ends in a tie.'
+        elif winner == 1:
+            msg = 'Player 1 wins!'
+        elif winner == 2:
+            msg = 'Player 2 wins!'
+        
+        # Delete COM instances
+        if self.com: 
+            del self.com
+            del self.com_player
+            self.com = None
+            self.com_player = None
+        if self.com_2: 
+            del self.com_2
+            del self.com_2_player
+            self.com_2 = None
+            self.com_2_player = None
+        
+        # Show winner to the screen
+        self.message(msg)    
+    #endregion
     
     # Shows message box to the user with message m
     def message(self, m):
         messagebox.showinfo(message=m, title="SOS")
         return
+    
+    # COM player move specialized function
+    def com_move(self):
+        if self.game.is_active():
+            if self.com and self.game.get_turn() == self.com_player:
+                move, piece = self.com.select_move()
+            elif self.com_2 and self.game.get_turn() == self.com_2_player:
+                move, piece = self.com_2.select_move()
+                
+            # Sleep for a certain amt of time based on player mode
+            # Helps user distinguish turns
+            if self.playermode_v.get() == 1:
+                sleep(0.9)
+            elif self.playermode_v.get() == 2:
+                sleep(0.5)
+            
+            self.piece_v.set(piece)
+            # Pull item ID for the selected move
+            keys = list(self.board_v.keys())
+            vals = list(self.board_v.values())
+            i = vals.index(move)
+            item_no = keys[i]
+            self.update_board(item_no)
+        
         
 
 
-
+# Main
 if __name__ == '__main__':
     app = App()
     app.master.title('SOS')
