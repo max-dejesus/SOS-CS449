@@ -72,24 +72,17 @@ class COM():
       
     # Select best move, perform, and update vars
     def select_move(self):
-        pf_start = perf_counter_ns()
-        self.get_moves()
-        pf_end = perf_counter_ns()
-        #print("COM get_moves executed. Time elapsed: ", pf_end-pf_start, 'ns')
+        if __name__ != '__main__':
+            self.get_moves()
+            
         mutator = random()
         if mutator < 0.05:
-            print('Mutated!')
-        if self.three_plus_moves:
-            if mutator < 0.05:
-                move, piece = choice(self.zero_moves)
+            move, piece = choice(self.zero_moves)
+        elif self.three_plus_moves:
             move, piece = choice(self.three_plus_moves)
         elif self.two_moves:
-            if mutator < 0.05:
-                move, piece = choice(self.zero_moves)
             move, piece = choice(self.two_moves)
         elif self.one_moves:
-            if mutator < 0.05:
-                move, piece = choice(self.zero_moves)
             move, piece = choice(self.one_moves)
         else:
             move, piece = choice(self.zero_moves)
@@ -110,31 +103,61 @@ if __name__ == "__main__":
     game.new_game()
     
     # Move 1, true random
+    pf_start = perf_counter_ns()
+    com.get_moves()
+    pf_end = perf_counter_ns()
+    print("COM get_moves executed. Time elapsed: ", pf_end-pf_start, 'ns')
+    
     move, pc = com.select_move()
     game.set_piece(pc)
     game.move(move[0], move[1])
     
     # Move two, random excluding already placed piece
+    pf_start = perf_counter_ns()
+    com.get_moves()
+    pf_end = perf_counter_ns()
+    print("COM get_moves executed. Time elapsed: ", pf_end-pf_start, 'ns')
+
     move, pc = com.select_move()
     game.set_piece(pc)
     game.move(move[0], move[1])
     
     # Move three, starts checking SOSes and finding good moves
+    pf_start = perf_counter_ns()
+    com.get_moves()
+    pf_end = perf_counter_ns()
+    print("COM get_moves executed. Time elapsed: ", pf_end-pf_start, 'ns')
+
     move, pc = com.select_move()
     game.set_piece(pc)
     game.move(move[0], move[1])
     
     # Move 4
+    pf_start = perf_counter_ns()
+    com.get_moves()
+    pf_end = perf_counter_ns()
+    print("COM get_moves executed. Time elapsed: ", pf_end-pf_start, 'ns')
+
     move, pc = com.select_move()
     game.set_piece(pc)
     game.move(move[0], move[1])
     
     # Move 5
+    pf_start = perf_counter_ns()
+    com.get_moves()
+    pf_end = perf_counter_ns()
+    print("COM get_moves executed. Time elapsed: ", pf_end-pf_start, 'ns')
+
     move, pc = com.select_move()
     game.set_piece(pc)
     game.move(move[0], move[1])
     
     # Move 6
+    pf_start = perf_counter_ns()
+    com.get_moves()
+    pf_end = perf_counter_ns()
+    print("COM get_moves executed. Time elapsed: ", pf_end-pf_start, 'ns')
+
     move, pc = com.select_move()
     game.set_piece(pc)
     game.move(move[0], move[1])

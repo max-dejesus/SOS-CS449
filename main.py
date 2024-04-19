@@ -4,6 +4,7 @@ from Game import Game
 from Errors import *
 from COM import COM
 from time import sleep, perf_counter_ns
+from ast import literal_eval
 
 ##### FLOWER BOX #####
 '''
@@ -12,6 +13,16 @@ top.rowconfigure(0, weight=1)
 top.columnconfigure(0, weight=1)
 self.rowconfigure(0, weight=1)
 self.columnconfigure(0, weight=1)
+
+# Testing prints used in update_board -> check_sos
+
+#pf_start = perf_counter_ns()
+soses = self.game.check_sos(coordr, coordc)
+#pf_end = perf_counter_ns()
+#print('SOS executed. Time elapsed:', pf_end-pf_start, 'ns')
+
+#print(f"Turn: {self.turn_v.get()}", (len(soses) / 2), soses)
+
 '''
 #####  END BOX   #####  
 
@@ -46,6 +57,10 @@ class App(tk.Frame):
         self.com_2 = None
         self.com_2_player = None
         
+        # Init record file var (default to None, opens file at new_game funciton)
+        self.record_file = None
+        self.replay = None
+        
         # Pull default values for UI vars
         self.pull_settings()
         self.pull_scores()
@@ -61,6 +76,12 @@ class App(tk.Frame):
         self.top = self.winfo_toplevel()
         self.top.resizable(False, False)
         
+    # Destructor. Closes file on class deletion for safety reasons.
+    def __del__(self):
+        try:
+            self.record_file.close()
+        except:
+            return
     
     # Exception handler function
     def excp_handler(self, error):
@@ -111,9 +132,11 @@ class App(tk.Frame):
         self.playermodePvp = tk.Radiobutton(self.newgameSettings, text='User v User', variable=self.playermode_v, value=0)
         self.playermodePvc = tk.Radiobutton(self.newgameSettings, text='User v COM', variable=self.playermode_v, value=1)
         self.playermodeCvc = tk.Radiobutton(self.newgameSettings, text='COM v COM', variable=self.playermode_v, value=2)
+        self.playermodeReplay = tk.Radiobutton(self.newgameSettings, text='Game Replay', variable=self.playermode_v, value=3)
         self.playermodePvp.grid(row=5, column=0, columnspan=2)
         self.playermodePvc.grid(row=6, column=0, columnspan=2)
         self.playermodeCvc.grid(row=7, column=0, columnspan=2)
+        self.playermodeReplay.grid(row=8, column=0, columnspan=2)
         #endregion
         
         # Row 2, col 0: Start new game button
@@ -264,7 +287,7 @@ class App(tk.Frame):
         # Binds click event if game is active, otherwise draws SOS to screen
         if self.game.is_active():
             # Do not bind click event if COM v COM
-            if self.playermode_v.get() == 2:
+            if self.game.get_playertype() == 2 or self.game.get_playertype() == 3:
                 return
             self.gameWindow.bind('<Button-1>', self.clicked)
         else:
@@ -303,17 +326,20 @@ class App(tk.Frame):
             # Once drawn, update Game class w/ appropriate move
             self.game.move(coordr, coordc)
             
-            # Check SOS and draw to screen
             if self.game.is_active():
+                # Handle the recording operations
+                if self.game.get_playertype() != 3:
+                    move = [(coordr, coordc), self.piece_v.get()]
+                    self.record_file = open('game_replay.txt','a')
+                    with self.record_file:
+                        self.record_file.write(f'{move}\n')
+                
+                # Check SOS and draw to screen
                 if self.game.get_no_moves() > 2:
-                    #pf_start = perf_counter_ns()
                     soses = self.game.check_sos(coordr, coordc)
-                    #pf_end = perf_counter_ns()
-                    #print('SOS executed. Time elapsed:', pf_end-pf_start, 'ns')
                     if soses == False:
                         pass
                     else:
-                        #print(f"Turn: {self.turn_v.get()}", (len(soses) / 2), soses)
                         for i in range(0, len(soses), 2):
                             item1 = self.pieces_v[soses[i]]
                             item2 = self.pieces_v[soses[i+1]]
@@ -369,18 +395,36 @@ class App(tk.Frame):
     #region Game execution functions
     # Ran when new game button is pressed. Specific setup employed based on player mode.
     def new_game(self):
+        # Special case execution for replay playermode
+        if self.playermode_v.get() == 3:
+            self.record_file = open('game_replay.txt', 'r')
+            with self.record_file as rf:
+                self.replay = [literal_eval(line.strip()) for line in rf]
+            rf.close()
+            gm, bs = self.replay[0]
+            self.gamemode_v.set(gm)
+            self.boardsize_v.set(bs)
+        
         if not self.send_settings():
             return
         else:
-            if self.playermode_v.get() == 1 or self.playermode_v.get() == 2:
+            if self.playermode_v.get() == 1 or self.playermode_v.get() == 2 or self.playermode_v.get() == 3:
                 self.com = COM(self.game)
                 self.com_player = self.com.get_player()
-            if self.playermode_v.get() == 2:
+            if self.playermode_v.get() == 2 or self.playermode_v.get() == 3:
                 self.com_2 = COM(self.game)
                 self.com_2_player = 1 if self.com_player == 2 else 2
                 self.com_2.set_player(self.com_2_player)
             self.game.new_game()
-            
+        
+        # Set record_file var to open file, clears, and puts game info
+        if self.playermode_v.get() != 3:
+            self.record_file = open('game_replay.txt', 'w+')
+            with self.record_file:
+                # [Gamemode, boardsize] on first line of file
+                self.record_file.write(f'[{self.game.get_gametype()}, {self.game.get_board_size()}]\n')
+        
+        # Create board based on new settings
         self.create_board()
     
     # Ends game instance
@@ -394,7 +438,7 @@ class App(tk.Frame):
         elif winner == 2:
             msg = 'Player 2 wins!'
         
-        # Delete COM instances
+        # Delete COM instances if they exist
         if self.com: 
             del self.com
             del self.com_player
@@ -419,15 +463,25 @@ class App(tk.Frame):
     def com_move(self):
         if self.game.is_active():
             if self.com and self.game.get_turn() == self.com_player:
-                move, piece = self.com.select_move()
+                if self.game.get_playertype() == 3:
+                    idx = self.game.get_no_moves() + 1
+                    move, piece = self.replay[idx]
+                else:
+                    move, piece = self.com.select_move()
             elif self.com_2 and self.game.get_turn() == self.com_2_player:
-                move, piece = self.com_2.select_move()
+                if self.game.get_playertype() == 3:
+                    idx = self.game.get_no_moves() + 1
+                    move, piece = self.replay[idx]
+                else:
+                    move, piece = self.com_2.select_move()
                 
             # Sleep for a certain amt of time based on player mode
             # Helps user distinguish turns
-            if self.playermode_v.get() == 1:
+            if self.game.get_playertype() == 1:
                 sleep(0.9)
-            elif self.playermode_v.get() == 2:
+            elif self.game.get_playertype() == 2:
+                sleep(0.5)
+            elif self.game.get_playertype() == 3:
                 sleep(0.5)
             
             self.piece_v.set(piece)

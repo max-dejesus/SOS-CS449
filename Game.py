@@ -32,7 +32,7 @@ class Game():
     def get_gametype(self):
         return self._gametype
     def get_playertype(self):
-        return self._gametype
+        return self._playertype
     def get_piece(self):
         return self._piece
     def get_turn(self):
